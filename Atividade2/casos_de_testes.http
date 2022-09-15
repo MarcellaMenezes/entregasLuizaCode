@@ -14,10 +14,18 @@ content-type: application/json
 }
 
 #######################################
-# Pegar usuário
+# Pegar usuário por código
 GET http://127.0.0.1:8000/usuario?id=1 HTTP/1.1
 content-type: application/json
 
+########################################
+# Pegar usuário por nome
+GET http://127.0.0.1:8000/usuario/nome?nome=teste HTTP/1.1
+content-type: application/json
+
+########################################
+DELETE http://127.0.0.1:8000/usuario/nome?id=1 HTTP/1.1
+content-type: application/json
 
 #######################################
 ############  endereço  ###############

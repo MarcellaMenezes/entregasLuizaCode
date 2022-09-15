@@ -1,52 +1,14 @@
 from operator import contains
+from sqlite3 import dbapi2
 from fastapi import FastAPI
 from typing import List
-from pydantic import BaseModel
+import Classes
 
 
 app = FastAPI()
 
 OK = "OK"
 FALHA = "FALHA"
-
-
-# Classe representando os dados do endereço do cliente
-class Endereco(BaseModel):
-    rua: str
-    cep: str
-    cidade: str
-    estado: str
-
-
-# Classe representando os dados do cliente
-class Usuario(BaseModel):
-    id: int
-    nome: str
-    email: str
-    senha: str
-
-
-# Classe representando a lista de endereços de um cliente
-class ListaDeEnderecosDoUsuario(BaseModel):
-    usuario: Usuario
-    enderecos: List[Endereco] = []
-
-
-# Classe representando os dados do produto
-class Produto(BaseModel):
-    id: int
-    nome: str
-    descricao: str
-    preco: float
-
-
-# Classe representando o carrinho de compras de um cliente com uma lista de produtos
-class CarrinhoDeCompras(BaseModel):
-    id_usuario: int
-    id_produtos: List[Produto] = []
-    preco_total: float
-    quantidade_de_produtos: int
-
 
 db_usuarios = {}
 db_produtos = {}
@@ -56,7 +18,6 @@ db_carrinhos = {}
 # =======================
 # === Criando usuário ===
 #========================
-
 # Salvar Usuário
 def persistencia_cadastro_usuario(novo_usuario):
     db_usuarios[novo_usuario.id] = novo_usuario
@@ -64,10 +25,12 @@ def persistencia_cadastro_usuario(novo_usuario):
     return OK
 
 # Validar Usuário
+# Se tiver outro usuário com o mesmo ID retornar falha
+# Se o email não tiver o @ retornar falha
+# Senha tem que ser maior ou igual a 3 caracteres
 def regras_cadastro_usuario(novo_usuario):
-    #Validando o usuário
     if novo_usuario.id in db_usuarios:
-        return FALHA
+        return FALHA  
     if novo_usuario.email.find('@') == -1:
         return FALHA
     if len(novo_usuario.senha) < 3:
@@ -76,36 +39,58 @@ def regras_cadastro_usuario(novo_usuario):
 
 # Criar um usuário      
 @app.post("/usuario/")
-async def criar_usuário(usuario: Usuario):
+async def criar_usuário(usuario: Classes.Usuario):
     return regras_cadastro_usuario(usuario)
     
 # ===========================
 # === Recuperando usuário ===
 #============================
-
 def persistencia_pesquisar_usuario(id):
+    return db_usuarios[id]
+
+# Se o id do usuário existir, retornar os dados do usuário, senão retornar falha    
+def regras_pesquisar_usuario(id):
     if id in db_usuarios:
-        return db_usuarios[id]
+        return persistencia_pesquisar_usuario(id)
     return FALHA
-    
+
 @app.get("/usuario/")
 async def retornar_usuario(id: int):
-   return  persistencia_pesquisar_usuario(id)
+   return regras_pesquisar_usuario(id)
 
+# ====================================
+# === Recuperando usuário por nome ===
+#=====================================
 
-# Se existir um usuário com exatamente o mesmo nome, retornar os dados do usuário
-# senão retornar falha
+# Se existir um usuário com exatamente o mesmo nome, retornar os dados do usuário, senão retornar falha      
+def regras_pesquisar_usuario_nome(nome):
+    for usuario in db_usuarios.items():
+        if usuario[1].nome == nome:
+            return persistencia_pesquisar_usuario(usuario[1].id)
+
 @app.get("/usuario/nome")
 async def retornar_usuario_com_nome(nome: str):
-    return FALHA
+    return regras_pesquisar_usuario_nome(nome)
 
+# ====================================
+# === Recuperando usuário por nome ===
+#=====================================
 
 # Se o id do usuário existir, deletar o usuário e retornar OK
 # senão retornar falha
 # ao deletar o usuário, deletar também endereços e carrinhos vinculados a ele
+def persistencia_deletar_usuario(id):
+    print(db_usuarios.pop(id))
+    return OK
+
+def regras_deletar_usuario(id):
+    if id in db_usuarios:
+        return persistencia_deletar_usuario(id)
+    return FALHA
+
 @app.delete("/usuario/")
 async def deletar_usuario(id: int):
-    return FALHA
+    return regras_deletar_usuario(id)
 
 
 # Se não existir usuário com o id_usuario retornar falha, 
@@ -129,7 +114,7 @@ async def retornar_emails(dominio: str):
 # Se não existir usuário com o id_usuario retornar falha, 
 # senão cria um endereço, vincula ao usuário e retornar OK
 @app.post("/endereco/{id_usuario}/")
-async def criar_endereco(endereco: Endereco, id_usuario: int):
+async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
     return OK
 
 
@@ -144,7 +129,7 @@ async def deletar_endereco(id_endereco: int):
 # Se tiver outro produto com o mesmo ID retornar falha, 
 # senão cria um produto e retornar OK
 @app.post("/produto/")
-async def criar_produto(produto: Produto):
+async def criar_produto(produto: Classes.Produto):
     return OK
 
 
@@ -169,7 +154,7 @@ async def adicionar_carrinho(id_usuario: int, id_produto: int):
 # senão retorna o carrinho de compras.
 @app.get("/carrinho/{id_usuario}/")
 async def retornar_carrinho(id_usuario: int):
-    return CarrinhoDeCompras
+    return Classes.CarrinhoDeCompras
 
 
 # Se não existir carrinho com o id_usuario retornar falha, 
