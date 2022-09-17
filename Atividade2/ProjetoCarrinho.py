@@ -10,6 +10,8 @@ app = FastAPI()
 OK = "OK"
 FALHA = "FALHA"
 
+ai_endereco = 0
+
 db_usuarios = {}
 db_produtos = {}
 db_end = {}        # enderecos_dos_usuarios
@@ -93,13 +95,41 @@ async def deletar_usuario(id: int):
     return regras_deletar_usuario(id)
 
 
+# ====================================
+# ========= Criando endereço =========
+#=====================================
+
+# Se não existir usuário com o id_usuario retornar falha, 
+# senão cria um endereço, vincula ao usuário e retornar OK
+
+@app.post("/endereco/{id_usuario}/")
+async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
+    user = await retornar_usuario(id_usuario)
+    if user != FALHA and user != None:
+        print(id_usuario)
+        db_end[len(db_end)+1] = dict({
+            "id_usuario" : id_usuario,
+            "endereco": endereco
+        })
+        print(db_end)
+        return OK
+    return FALHA
+
 # Se não existir usuário com o id_usuario retornar falha, 
 # senão retornar uma lista de todos os endereços vinculados ao usuário
 # caso o usuário não possua nenhum endereço vinculado a ele, retornar 
 # uma lista vazia
 ### Estudar sobre Path Params (https://fastapi.tiangolo.com/tutorial/path-params/)
-@app.get("/usuario/{id_usuario}/endereços/")
+@app.get("/usuario/{id_usuario}/enderecos/")
 async def retornar_enderecos_do_usuario(id_usuario: int):
+    lista = []
+    user = await retornar_usuario(id_usuario)
+    if user != FALHA and user != None:
+        for end in db_end.items():
+            if end[1]['id_usuario'] == id_usuario:
+                lista.append(end[1]['endereco'])           
+        print(lista)
+        return lista
     return FALHA
 
 
@@ -111,11 +141,6 @@ async def retornar_emails(dominio: str):
     return FALHA
 
 
-# Se não existir usuário com o id_usuario retornar falha, 
-# senão cria um endereço, vincula ao usuário e retornar OK
-@app.post("/endereco/{id_usuario}/")
-async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
-    return OK
 
 
 # Se não existir endereço com o id_endereco retornar falha, 
