@@ -36,14 +36,25 @@ POST http://127.0.0.1:8000/endereco/1 HTTP/1.1
 content-type: application/json
 
 {
-    "rua": "Rua Ladrilhada",
+    "rua": "Rua Ladrilhadaaaa",
     "cep": "99999-999",
     "cidade": "São Paulo",
     "estado": "SP"
 }
 
 ######################################
+#Busca endereço
 GET http://127.0.0.1:8000/usuario/1/enderecos/ HTTP/1.1
+content-type: application/json
+
+######################################
+#Busca e-mail
+GET http://127.0.0.1:8000/usuarios/emails/?dominio=gmail.com HTTP/1.1
+content-type: application/json
+
+
+########################################
+DELETE http://127.0.0.1:8000/endereco/2/ HTTP/1.1
 content-type: application/json
 
 #######################################

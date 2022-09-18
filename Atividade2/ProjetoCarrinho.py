@@ -1,3 +1,4 @@
+import email
 from operator import contains
 from sqlite3 import dbapi2
 from fastapi import FastAPI
@@ -11,6 +12,7 @@ OK = "OK"
 FALHA = "FALHA"
 
 ai_endereco = 0
+ai_carrinho = 0
 
 db_usuarios = {}
 db_produtos = {}
@@ -67,6 +69,7 @@ async def retornar_usuario(id: int):
 # Se existir um usuário com exatamente o mesmo nome, retornar os dados do usuário, senão retornar falha      
 def regras_pesquisar_usuario_nome(nome):
     for usuario in db_usuarios.items():
+        print(usuario)
         if usuario[1].nome == nome:
             return persistencia_pesquisar_usuario(usuario[1].id)
 
@@ -107,7 +110,9 @@ async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
     user = await retornar_usuario(id_usuario)
     if user != FALHA and user != None:
         print(id_usuario)
-        db_end[len(db_end)+1] = dict({
+        global ai_endereco
+        ai_endereco += 1
+        db_end[ai_endereco] = dict({
             "id_usuario" : id_usuario,
             "endereco": endereco
         })
@@ -127,20 +132,14 @@ async def retornar_enderecos_do_usuario(id_usuario: int):
     if user != FALHA and user != None:
         for end in db_end.items():
             if end[1]['id_usuario'] == id_usuario:
-                lista.append(end[1]['endereco'])           
+                enderecos = {
+                    "id": end[0],
+                    "endereco": end[1]['endereco']
+                }
+                lista.append(enderecos)           
         print(lista)
         return lista
     return FALHA
-
-
-# Retornar todos os emails que possuem o mesmo domínio
-# (domínio do email é tudo que vêm depois do @)
-# senão retornar falha
-@app.get("/usuarios/emails/")
-async def retornar_emails(dominio: str):
-    return FALHA
-
-
 
 
 # Se não existir endereço com o id_endereco retornar falha, 
@@ -148,13 +147,39 @@ async def retornar_emails(dominio: str):
 # (lembrar de desvincular o endereço ao usuário)
 @app.delete("/endereco/{id_endereco}/")
 async def deletar_endereco(id_endereco: int):
-    return OK
+    if id_endereco in db_end:
+        db_end.pop(id_endereco)
+        return OK
+    return FALHA
+
+# ====================================
+# ========= Retornando e-mail ========
+#=====================================
+
+# Retornar todos os emails que possuem o mesmo domínio
+# (domínio do email é tudo que vêm depois do @)
+# senão retornar falha
+@app.get("/usuarios/emails/")
+async def retornar_emails(dominio: str):
+    emails = [ email[1].email for email in db_usuarios.items() if (email[1].email).split('@')[1] == dominio]
+    print(emails)
+    if len(emails) > 0:
+        return dict(enumerate(emails, 1))
+    return FALHA
+
+# ====================================
+# ========= Produtos =================
+#=====================================
 
 
 # Se tiver outro produto com o mesmo ID retornar falha, 
 # senão cria um produto e retornar OK
 @app.post("/produto/")
 async def criar_produto(produto: Classes.Produto):
+    if produto.id in db_produtos:
+        return FALHA
+    db_produtos[produto.id] = produto
+    print(db_produtos)
     return OK
 
 
@@ -163,7 +188,11 @@ async def criar_produto(produto: Classes.Produto):
 # (lembrar de desvincular o produto dos carrinhos do usuário)
 @app.delete("/produto/{id_produto}/")
 async def deletar_produto(id_produto: int):
-    return OK
+    if id_produto in db_produtos:
+        db_produtos.pop(id_produto)
+        # (lembrar de desvincular o produto dos carrinhos do usuário)
+        return OK
+    return FALHA
 
 
 # Se não existir usuário com o id_usuario ou id_produto retornar falha, 
@@ -172,6 +201,8 @@ async def deletar_produto(id_produto: int):
 # senão adiciona produto ao carrinho e retornar OK
 @app.post("/carrinho/{id_usuario}/{id_produto}/")
 async def adicionar_carrinho(id_usuario: int, id_produto: int):
+    if not id_usuario in db_usuarios or not id_produto in db_produtos:
+        return FALHA
     return OK
 
 
