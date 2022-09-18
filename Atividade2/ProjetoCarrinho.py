@@ -1,38 +1,37 @@
 import email
 from operator import contains
 from sqlite3 import dbapi2
+from unittest import result
 from fastapi import FastAPI
 from typing import List
 from functools import reduce
 import Classes
-
 
 app = FastAPI()
 
 OK = "OK"
 FALHA = "FALHA"
 
+# Auto incremento para chaves
 ai_endereco = 0
 ai_carrinho = 0
 
+# 'Banco' de dados
 db_usuarios = {}
 db_produtos = {}
-db_end = {}        # enderecos_dos_usuarios
+db_end = {}     
 db_carrinhos = {}
 
-# =======================
-# === Criando usuário ===
-#========================
+# ==============================================
+# ============== Criando usuário ===============
+#===============================================
+
 # Salvar Usuário
 def persistencia_cadastro_usuario(novo_usuario):
     db_usuarios[novo_usuario.id] = novo_usuario
     print("Registrando novo usuário: ", novo_usuario.dict())
     return OK
 
-# Validar Usuário
-# Se tiver outro usuário com o mesmo ID retornar falha
-# Se o email não tiver o @ retornar falha
-# Senha tem que ser maior ou igual a 3 caracteres
 def regras_cadastro_usuario(novo_usuario):
     if novo_usuario.id in db_usuarios:
         return FALHA  
@@ -47,9 +46,10 @@ def regras_cadastro_usuario(novo_usuario):
 async def criar_usuário(usuario: Classes.Usuario):
     return regras_cadastro_usuario(usuario)
     
-# ===========================
-# === Recuperando usuário ===
-#============================
+# ==============================================
+# =========== Recuperando usuário ==============
+# ==============================================
+
 def persistencia_pesquisar_usuario(id):
     return db_usuarios[id]
 
@@ -63,9 +63,9 @@ def regras_pesquisar_usuario(id):
 async def retornar_usuario(id: int):
    return regras_pesquisar_usuario(id)
 
-# ====================================
-# === Recuperando usuário por nome ===
-#=====================================
+# ==============================================
+# ====== Recuperando usuário por nome ==========
+#===============================================
 
 # Se existir um usuário com exatamente o mesmo nome, retornar os dados do usuário, senão retornar falha      
 def regras_pesquisar_usuario_nome(nome):
@@ -78,15 +78,21 @@ def regras_pesquisar_usuario_nome(nome):
 async def retornar_usuario_com_nome(nome: str):
     return regras_pesquisar_usuario_nome(nome)
 
-# ====================================
-# === Recuperando usuário por nome ===
-#=====================================
+# ==============================================
+# ============= Deletando Usuário ==============
+#===============================================
 
 # Se o id do usuário existir, deletar o usuário e retornar OK
 # senão retornar falha
 # ao deletar o usuário, deletar também endereços e carrinhos vinculados a ele
 def persistencia_deletar_usuario(id):
+    print(f'Deletando o usuário {id}.')
     db_usuarios.pop(id)
+    # Deletando endereço 
+    deletar_endereco_usuario(id)
+    # Deletando carrinho
+    deletar_carrinho(id)
+    
     return OK
 
 def regras_deletar_usuario(id):
@@ -98,19 +104,15 @@ def regras_deletar_usuario(id):
 async def deletar_usuario(id: int):
     return regras_deletar_usuario(id)
 
+# ==============================================
+# ================= Endereços ==================
+#===============================================
 
-# ====================================
-# ========= Criando endereço =========
-#=====================================
-
-# Se não existir usuário com o id_usuario retornar falha, 
-# senão cria um endereço, vincula ao usuário e retornar OK
-
+# Criando endereço para um usuário
 @app.post("/endereco/{id_usuario}/")
 async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
     user = await retornar_usuario(id_usuario)
-    if user != FALHA and user != None:
-        print(id_usuario)
+    if user != FALHA:
         global ai_endereco
         ai_endereco += 1
         db_end[ai_endereco] = dict({
@@ -121,37 +123,47 @@ async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
         return OK
     return FALHA
 
-# Se não existir usuário com o id_usuario retornar falha, 
-# senão retornar uma lista de todos os endereços vinculados ao usuário
-# caso o usuário não possua nenhum endereço vinculado a ele, retornar 
-# uma lista vazia
-### Estudar sobre Path Params (https://fastapi.tiangolo.com/tutorial/path-params/)
+# Retornando endereços de um usuário
 @app.get("/usuario/{id_usuario}/enderecos/")
 async def retornar_enderecos_do_usuario(id_usuario: int):
     lista = []
     user = await retornar_usuario(id_usuario)
-    if user != FALHA and user != None:
+    if user != FALHA:
         for end in db_end.items():
             if end[1]['id_usuario'] == id_usuario:
                 enderecos = {
-                    "id": end[0],
+                    #"id_usuario" : end[1]['id_usuario'],
+                    "id_endereco": end[0],
                     "endereco": end[1]['endereco']
                 }
                 lista.append(enderecos)           
-        print(lista)
         return lista
     return FALHA
 
-
-# Se não existir endereço com o id_endereco retornar falha, 
-# senão deleta endereço correspondente ao id_endereco e retornar OK
-# (lembrar de desvincular o endereço ao usuário)
+# Deletando endereço por id_endereço
 @app.delete("/endereco/{id_endereco}/")
 async def deletar_endereco(id_endereco: int):
     if id_endereco in db_end:
         db_end.pop(id_endereco)
+        print(f'Deletando o endereço {id_endereco}.')
         return OK
     return FALHA
+
+# Deletando endereço pelo id_usuário
+@app.delete("/endereco/usuario/{id_usuario}/")
+async def deletar_endereco_usuario(id_usuario: int):
+    listaDelecao = []
+    for end in db_end.items():
+        if end[1]['id_usuario'] == id_usuario:
+            listaDelecao.append(end[0])
+    
+    if len(listaDelecao) == 0:
+        return FALHA
+    else:
+        for id in listaDelecao:
+            db_end.pop(id)
+            print(f'Deletando o endereço {id}, do usuário {id_usuario}.')
+    return OK
 
 # ====================================
 # ========= Retornando e-mail ========
@@ -265,6 +277,7 @@ async def retornar_total_carrinho(id_usuario: int):
 async def deletar_carrinho(id_usuario: int):
     if id_usuario in db_carrinhos:
         db_carrinhos.pop(id_usuario)
+        print(f"Deletando o carrinho do usuario {id_usuario} ")
         return OK
     return FALHA
 
