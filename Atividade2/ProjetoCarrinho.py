@@ -52,8 +52,7 @@ async def criar_usuário(usuario: Classes.Usuario):
 
 def persistencia_pesquisar_usuario(id):
     return db_usuarios[id]
-
-# Se o id do usuário existir, retornar os dados do usuário, senão retornar falha    
+ 
 def regras_pesquisar_usuario(id):
     if id in db_usuarios:
         return persistencia_pesquisar_usuario(id)
@@ -67,7 +66,6 @@ async def retornar_usuario(id: int):
 # ====== Recuperando usuário por nome ==========
 #===============================================
 
-# Se existir um usuário com exatamente o mesmo nome, retornar os dados do usuário, senão retornar falha      
 def regras_pesquisar_usuario_nome(nome):
     for usuario in db_usuarios.items():
         print(usuario)
@@ -82,16 +80,13 @@ async def retornar_usuario_com_nome(nome: str):
 # ============= Deletando Usuário ==============
 #===============================================
 
-# Se o id do usuário existir, deletar o usuário e retornar OK
-# senão retornar falha
-# ao deletar o usuário, deletar também endereços e carrinhos vinculados a ele
 def persistencia_deletar_usuario(id):
     print(f'Deletando o usuário {id}.')
     db_usuarios.pop(id)
     # Deletando endereço 
-    deletar_endereco_usuario(id)
+    #deletar_endereco_usuario(id)
     # Deletando carrinho
-    deletar_carrinho(id)
+    #deletar_carrinho(id)
     
     return OK
 
@@ -114,11 +109,19 @@ async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
     user = await retornar_usuario(id_usuario)
     if user != FALHA:
         global ai_endereco
-        ai_endereco += 1
-        db_end[ai_endereco] = dict({
-            "id_usuario" : id_usuario,
-            "endereco": endereco
-        })
+        ai_endereco += 1 
+        listaEnd = {}
+        
+        #Recuperando a lista atual de endereço do cliente
+        if id_usuario in db_end:
+            listaEnd = db_end[id_usuario]["enderecos"]
+        
+        listaEnd[ai_endereco] = endereco
+        novo_endereco = Classes.ListaDeEnderecosDoUsuario = {
+            "id_usuario":id_usuario,
+            "enderecos":listaEnd
+            }
+        db_end[id_usuario] = novo_endereco
         print(db_end)
         return OK
     return FALHA
@@ -126,52 +129,36 @@ async def criar_endereco(endereco: Classes.Endereco, id_usuario: int):
 # Retornando endereços de um usuário
 @app.get("/usuario/{id_usuario}/enderecos/")
 async def retornar_enderecos_do_usuario(id_usuario: int):
-    lista = []
     user = await retornar_usuario(id_usuario)
     if user != FALHA:
         for end in db_end.items():
             if end[1]['id_usuario'] == id_usuario:
-                enderecos = {
-                    #"id_usuario" : end[1]['id_usuario'],
-                    "id_endereco": end[0],
-                    "endereco": end[1]['endereco']
-                }
-                lista.append(enderecos)           
-        return lista
+                return end[1]['enderecos']       
     return FALHA
 
 # Deletando endereço por id_endereço
 @app.delete("/endereco/{id_endereco}/")
 async def deletar_endereco(id_endereco: int):
-    if id_endereco in db_end:
-        db_end.pop(id_endereco)
-        print(f'Deletando o endereço {id_endereco}.')
-        return OK
+    for endereco in db_end.items():
+        if id_endereco in endereco[1]['enderecos']:
+            print(f'Deletando o endereço {id_endereco}')
+            endereco[1]['enderecos'].pop(id_endereco)
+            return OK
     return FALHA
 
 # Deletando endereço pelo id_usuário
 @app.delete("/endereco/usuario/{id_usuario}/")
 async def deletar_endereco_usuario(id_usuario: int):
-    listaDelecao = []
-    for end in db_end.items():
-        if end[1]['id_usuario'] == id_usuario:
-            listaDelecao.append(end[0])
-    
-    if len(listaDelecao) == 0:
-        return FALHA
-    else:
-        for id in listaDelecao:
-            db_end.pop(id)
-            print(f'Deletando o endereço {id}, do usuário {id_usuario}.')
+    if id_usuario in db_end:
+        print(f'Deletando os endereços do usuário {id_usuario}.')
+        db_end.pop(id_usuario)
     return OK
 
-# ====================================
-# ========= Retornando e-mail ========
-#=====================================
+# ==============================================
+# =================== E-mail ===================
+#===============================================
 
-# Retornar todos os emails que possuem o mesmo domínio
-# (domínio do email é tudo que vêm depois do @)
-# senão retornar falha
+#Buscando e-mails com o mesmo domínio
 @app.get("/usuarios/emails/")
 async def retornar_emails(dominio: str):
     emails = [ email[1].email for email in db_usuarios.items() if (email[1].email).split('@')[1] == dominio]
@@ -180,12 +167,11 @@ async def retornar_emails(dominio: str):
         return dict(enumerate(emails, 1))
     return FALHA
 
-# ====================================
-# ========= Produtos =================
-#=====================================
+# ==============================================
+# =================== Produtos =================
+#===============================================
 
-# Se tiver outro produto com o mesmo ID retornar falha, 
-# senão cria um produto e retornar OK
+# Criando produto
 @app.post("/produto/")
 async def criar_produto(produto: Classes.Produto):
     if produto.id in db_produtos:
@@ -194,53 +180,59 @@ async def criar_produto(produto: Classes.Produto):
     print(db_produtos)
     return OK
 
+# Retornando todos os produtos
 @app.get("/produto/")
 async def retornar_produtos():
     return  db_produtos
 
-# Se não existir produto com o id_produto retornar falha, 
-# senão deleta produto correspondente ao id_produto e retornar OK
-# (lembrar de desvincular o produto dos carrinhos do usuário)
+# Deletando um produto pelo seu id
 @app.delete("/produto/{id_produto}/")
 async def deletar_produto(id_produto: int):
     if id_produto in db_produtos:
+        deletar_produto_carrinho(id_produto)
         db_produtos.pop(id_produto)
-        # (lembrar de desvincular o produto dos carrinhos do usuário)
         return OK
     return FALHA
 
+# Deletando um produto do carrinho 
+def deletar_produto_carrinho(id_produto):
+    for carrinho in db_carrinhos.items():
+        print(carrinho)
+        if id_produto in carrinho[1]["id_produtos"]:
+            print(f"Deletando o produto {id_produto}")
+            
+            #Descontando o valor e quantidade do item retirado
+            qtdProdRemov        = carrinho[1]["id_produtos"][id_produto]["quantidade"]
+            precoTotProdRemov   = db_produtos[id_produto].preco * qtdProdRemov     
+            db_carrinhos[1]['quantidade_de_produtos'] -=  qtdProdRemov
+            db_carrinhos[1]['preco_total'] -=  precoTotProdRemov
+            
+            carrinho[1]["id_produtos"].pop(id_produto)
+            
+# ==============================================
+# ================== Carrinho ==================
+#===============================================
 
-# ====================================
-# ========= Carrinho =================
-#=====================================
-
+# Criando carrinho vazio
 def cria_carrinho(id_usuario):
     db_carrinhos[id_usuario] = {
         'id_usuario': 1,
-        'id_produtos': [],
+        'id_produtos': {},
         'preco_total': 0,
         'quantidade_de_produtos': 0
     }
-    
+ 
+# Adicionando item no carrinho e somando os totais de produtos e preço   
 def adiciona_item_carrinho(id_usuario, id_produto, quantidade):
-    db_carrinhos[id_usuario]['id_produtos'].append({
+    db_carrinhos[id_usuario]['id_produtos'][id_produto]=({
             "id": id_produto,
             "quantidade" : quantidade
         })
-    #qtd_atual = db_carrinhos[id_usuario]['quantidade_de_produtos']
     db_carrinhos[id_usuario]['quantidade_de_produtos'] +=  quantidade
-    
-    #preco_tot_atual = db_carrinhos[id_usuario]['preco_total'] 
     db_carrinhos[id_usuario]['preco_total'] += db_produtos[id_produto].preco * quantidade
     print(db_carrinhos)
-     
-def atualiza_quantidade_carrinho(id_usuario):
-    result = reduce(lambda x, y: x+y, db_carrinhos[id_usuario]['id_produtos'], 0)
-
-# Se não existir usuário com o id_usuario ou id_produto retornar falha, 
-# se não existir um carrinho vinculado ao usuário, crie o carrinho
-# e retornar OK
-# senão adiciona produto ao carrinho e retornar OK
+ 
+# Adicionando item no carrinho   
 @app.post("/carrinho/{id_usuario}/{id_produto}/{quantidade}/")
 async def adicionar_carrinho(id_usuario: int, id_produto: int, quantidade: int):
     print(f"{id_usuario}, {id_produto}, {quantidade}")
@@ -254,16 +246,14 @@ async def adicionar_carrinho(id_usuario: int, id_produto: int, quantidade: int):
         adiciona_item_carrinho(id_usuario, id_produto, quantidade)
         return OK
 
-# Se não existir carrinho com o id_usuario retornar falha, 
-# senão retorna o carrinho de compras.
+# Buscando carrinho de um usuário
 @app.get("/carrinho/{id_usuario}/")
 async def retornar_carrinho(id_usuario: int):
     if id_usuario in db_carrinhos:
       return db_carrinhos[id_usuario]
     return FALHA
 
-# Se não existir carrinho com o id_usuario retornar falha, 
-# senão retorna o o número de itens e o valor total do carrinho de compras.
+# Buscando total do carrinho de um usuário
 @app.get("/carrinho/{id_usuario}/total")
 async def retornar_total_carrinho(id_usuario: int):
     if id_usuario in db_carrinhos:
@@ -271,8 +261,7 @@ async def retornar_total_carrinho(id_usuario: int):
         db_carrinhos[id_usuario]['preco_total'] 
     return FALHA
 
-# Se não existir usuário com o id_usuario retornar falha, 
-# senão deleta o carrinho correspondente ao id_usuario e retornar OK
+# Deletando o carrinho de um usuário
 @app.delete("/carrinho/{id_usuario}/")
 async def deletar_carrinho(id_usuario: int):
     if id_usuario in db_carrinhos:

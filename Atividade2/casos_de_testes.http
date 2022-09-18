@@ -80,17 +80,18 @@ content-type: application/json
 }
 
 ###############################################
-#Buscar endereço
+# Buscar endereços do usuário
 GET http://127.0.0.1:8000/usuario/1/enderecos/ HTTP/1.1
 content-type: application/json
 
 ###############################################
-#Deletar endereço pelo id_endereço
+# Deletar endereço pelo id_endereço
 DELETE http://127.0.0.1:8000/endereco/2/ HTTP/1.1
 content-type: application/json
 
-#Deletar endereço pelo id_usuário
-DELETE http://127.0.0.1:8000/endereco/1/ HTTP/1.1
+###############################################
+# Deletar endereço pelo id_usuário
+DELETE http://127.0.0.1:8000/endereco/usuario/1/ HTTP/1.1
 content-type: application/json
 
 ###############################################
@@ -129,15 +130,29 @@ content-type: application/json
 }
 
 ###############################################
-#Buscando produto
+#Buscando produtos
 GET http://127.0.0.1:8000/produto/ HTTP/1.1
+content-type: application/json
+
+###############################################
+#Deletando produto
+DELETE http://127.0.0.1:8000/produto/1 HTTP/1.1
 content-type: application/json
 
 ###############################################
 ################## CARRINHO ###################
 ###############################################
 
-# Criar carrinho usuario, produto, quantidade
+# Adicionanitem item no carrinho, usuario = 1, produto = 1 (Sorvete), quantidade = 3 
+POST http://127.0.0.1:8000/carrinho/1/1/3 HTTP/1.1
+content-type: application/json
+
+{
+    
+}
+
+###############################################
+# # Adicionanitem item no carrinho, usuario = 1, produto = 2 (Pipoca), quantidade = 1
 POST http://127.0.0.1:8000/carrinho/1/2/3 HTTP/1.1
 content-type: application/json
 
@@ -145,20 +160,17 @@ content-type: application/json
     
 }
 
-#######################################
+###############################################
 # Busca carrinho de um cliente 
 GET http://127.0.0.1:8000/carrinho/1/ HTTP/1.1
 content-type: application/json
 
-#######################################
+###############################################
 # Busca total carrinho de um cliente 
 GET http://127.0.0.1:8000/carrinho/1/total HTTP/1.1
 content-type: application/json
 
-################################
-# Busca total carrinho de um cliente 
+###############################################
+# Deleta carrinho de um cliente 
 DELETE http://127.0.0.1:8000/carrinho/1/ HTTP/1.1
 content-type: application/json
-
-
-#@app.get("/carrinho/{id_usuario}/")

@@ -20,7 +20,7 @@ class Usuario(BaseModel):
 
 # Classe representando a lista de endereços de um cliente
 class ListaDeEnderecosDoUsuario(BaseModel):
-    usuario: Usuario
+    id_usuario: int
     enderecos: List[Endereco] = []
 
 
