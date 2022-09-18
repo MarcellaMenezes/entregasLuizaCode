@@ -3,6 +3,7 @@ from operator import contains
 from sqlite3 import dbapi2
 from fastapi import FastAPI
 from typing import List
+from functools import reduce
 import Classes
 
 
@@ -85,7 +86,7 @@ async def retornar_usuario_com_nome(nome: str):
 # senão retornar falha
 # ao deletar o usuário, deletar também endereços e carrinhos vinculados a ele
 def persistencia_deletar_usuario(id):
-    print(db_usuarios.pop(id))
+    db_usuarios.pop(id)
     return OK
 
 def regras_deletar_usuario(id):
@@ -171,7 +172,6 @@ async def retornar_emails(dominio: str):
 # ========= Produtos =================
 #=====================================
 
-
 # Se tiver outro produto com o mesmo ID retornar falha, 
 # senão cria um produto e retornar OK
 @app.post("/produto/")
@@ -182,6 +182,9 @@ async def criar_produto(produto: Classes.Produto):
     print(db_produtos)
     return OK
 
+@app.get("/produto/")
+async def retornar_produtos():
+    return  db_produtos
 
 # Se não existir produto com o id_produto retornar falha, 
 # senão deleta produto correspondente ao id_produto e retornar OK
@@ -195,37 +198,75 @@ async def deletar_produto(id_produto: int):
     return FALHA
 
 
+# ====================================
+# ========= Carrinho =================
+#=====================================
+
+def cria_carrinho(id_usuario):
+    db_carrinhos[id_usuario] = {
+        'id_usuario': 1,
+        'id_produtos': [],
+        'preco_total': 0,
+        'quantidade_de_produtos': 0
+    }
+    
+def adiciona_item_carrinho(id_usuario, id_produto, quantidade):
+    db_carrinhos[id_usuario]['id_produtos'].append({
+            "id": id_produto,
+            "quantidade" : quantidade
+        })
+    #qtd_atual = db_carrinhos[id_usuario]['quantidade_de_produtos']
+    db_carrinhos[id_usuario]['quantidade_de_produtos'] +=  quantidade
+    
+    #preco_tot_atual = db_carrinhos[id_usuario]['preco_total'] 
+    db_carrinhos[id_usuario]['preco_total'] += db_produtos[id_produto].preco * quantidade
+    print(db_carrinhos)
+     
+def atualiza_quantidade_carrinho(id_usuario):
+    result = reduce(lambda x, y: x+y, db_carrinhos[id_usuario]['id_produtos'], 0)
+
 # Se não existir usuário com o id_usuario ou id_produto retornar falha, 
 # se não existir um carrinho vinculado ao usuário, crie o carrinho
 # e retornar OK
 # senão adiciona produto ao carrinho e retornar OK
-@app.post("/carrinho/{id_usuario}/{id_produto}/")
-async def adicionar_carrinho(id_usuario: int, id_produto: int):
+@app.post("/carrinho/{id_usuario}/{id_produto}/{quantidade}/")
+async def adicionar_carrinho(id_usuario: int, id_produto: int, quantidade: int):
+    print(f"{id_usuario}, {id_produto}, {quantidade}")
     if not id_usuario in db_usuarios or not id_produto in db_produtos:
         return FALHA
-    return OK
-
+    if not id_usuario in db_carrinhos:
+        cria_carrinho(id_usuario)
+        adiciona_item_carrinho(id_usuario, id_produto, quantidade)
+        return OK
+    else :
+        adiciona_item_carrinho(id_usuario, id_produto, quantidade)
+        return OK
 
 # Se não existir carrinho com o id_usuario retornar falha, 
 # senão retorna o carrinho de compras.
 @app.get("/carrinho/{id_usuario}/")
 async def retornar_carrinho(id_usuario: int):
-    return Classes.CarrinhoDeCompras
-
+    if id_usuario in db_carrinhos:
+      return db_carrinhos[id_usuario]
+    return FALHA
 
 # Se não existir carrinho com o id_usuario retornar falha, 
 # senão retorna o o número de itens e o valor total do carrinho de compras.
-@app.get("/carrinho/{id_usuario}/")
+@app.get("/carrinho/{id_usuario}/total")
 async def retornar_total_carrinho(id_usuario: int):
-    numero_itens, valor_total = 0
-    return numero_itens, valor_total
-
+    if id_usuario in db_carrinhos:
+        return db_carrinhos[id_usuario]['quantidade_de_produtos'], \
+        db_carrinhos[id_usuario]['preco_total'] 
+    return FALHA
 
 # Se não existir usuário com o id_usuario retornar falha, 
 # senão deleta o carrinho correspondente ao id_usuario e retornar OK
 @app.delete("/carrinho/{id_usuario}/")
 async def deletar_carrinho(id_usuario: int):
-    return OK
+    if id_usuario in db_carrinhos:
+        db_carrinhos.pop(id_usuario)
+        return OK
+    return FALHA
 
 
 @app.get("/")

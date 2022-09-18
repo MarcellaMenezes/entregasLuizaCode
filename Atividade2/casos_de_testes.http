@@ -9,7 +9,7 @@ content-type: application/json
 {
     "id": 1,
     "nome": "teste",
-    "email": "teste@gmail.com",
+    "email": "marcella@gmail.com",
     "senha": "1234"
 }
 
@@ -52,8 +52,8 @@ content-type: application/json
 GET http://127.0.0.1:8000/usuarios/emails/?dominio=gmail.com HTTP/1.1
 content-type: application/json
 
-
 ########################################
+#Deletando endereço
 DELETE http://127.0.0.1:8000/endereco/2/ HTTP/1.1
 content-type: application/json
 
@@ -62,7 +62,7 @@ content-type: application/json
 #######################################
 
 # Criar produto
-POST http://127.0.0.1:8000/produto HTTP/1.1
+POST http://127.0.0.1:8000/produto/ HTTP/1.1
 content-type: application/json
 
 {
@@ -71,3 +71,44 @@ content-type: application/json
     "descricao": "Doce gelado",
     "preco": 9.99
 }
+
+#######################################
+POST http://127.0.0.1:8000/produto/ HTTP/1.1
+content-type: application/json
+
+{
+    "id": 2,
+    "nome": "Pipoca",
+    "descricao": "Doce",
+    "preco": 1.99
+}
+
+#######################################
+#Buscando produto
+GET http://127.0.0.1:8000/produto/ HTTP/1.1
+content-type: application/json
+
+#######################################
+############  carrinho  ###############
+#######################################
+
+# Criar carrinho usuario, produto, quantidade
+POST http://127.0.0.1:8000/carrinho/1/2/3 HTTP/1.1
+content-type: application/json
+
+{
+    
+}
+
+#######################################
+# Busca carrinho de um cliente 
+GET http://127.0.0.1:8000/carrinho/1/ HTTP/1.1
+content-type: application/json
+
+#######################################
+# Busca total carrinho de um cliente 
+GET http://127.0.0.1:8000/carrinho/1/total HTTP/1.1
+content-type: application/json
+
+
+#@app.get("/carrinho/{id_usuario}/")
